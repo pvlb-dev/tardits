@@ -24,6 +24,7 @@ There may be better uses for CVNNs than predicting text... but why not Shakespea
 #### 3D SAIL Phase-Amplitude Topography (8 Layers)
 [![3D 4 Layer SAIL](https://img.youtube.com/vi/r6ykSiY3ipY/0.jpg)](https://youtu.be/r6ykSiY3ipY?si=VosKe4IpfWTy1jbz)
 [![3D 8 Layer SAIL](https://img.youtube.com/vi/7kjrDF7-UUg/0.jpg)](https://youtube.com/shorts/7kjrDF7-UUg?si=jcLONq29jUDC2mVX)
+
 *Figure: Evolution of selective phase interference across all 8 Transformer layers over training steps. Deep layers (6 & 7) demonstrate extreme destructive phase cancellation alongside razor-sharp resonance peaks ($> 10,000$ amplitude). That's why the Post-Norm design makes a lot of sense here*
 
 <br>
@@ -49,7 +50,7 @@ shared parameters:
 Number of parameters scaled. The unoptimised octonion and sedenion math needs *forever* to compute... and all the runs were done on a thinkpad CPU 🫣
 
 <img width="1760" height="842" alt="Image" src="https://github.com/user-attachments/assets/78f152ca-ceab-435a-9b36-629031519223" />
-*Figure: Training and validation loss trajectories across spaces ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}, \mathbb{S}$). Note how Complex-383k (green) consistently outperforms the larger Real-baseline (blue).*
+Figure: Training and validation loss trajectories across spaces ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}, \mathbb{S}$). Note how Complex-383k (green) consistently outperforms the larger Real-baseline (blue).
 
 | Model             |    Space     | $n_{embd}$ | Layers | Heads | Params | Train Loss | Val Loss  |
 | :---------------- | :----------: | :--------: | :----: | :---: | :----: | :--------: | :-------: |
