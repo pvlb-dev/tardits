@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tardits"
+version = "0.1.0"
+description = "Text And Rotating Dimensions In Token Space"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.5.1",
+    "torch>=2.13.0",
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+
+[project.optional-dependencies]
+mlflow = [
+    "mlflow>=3.14.0",
+    "psutil>=7.2.2",
+]
+
+[tool.setuptools]
+packages = ["modules", "models"]
