@@ -1,0 +1,29 @@
+device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
+seed: 1337
+
+model:
+  type: "Sedenion" # Choices: Real, Complex, Quat, Octo, Sedenion
+  block_size: 32
+  n_head: 2
+  n_embd: 4
+  n_layer: 2
+  dropout: 0.2
+
+trainer:
+  batch_size: 32
+  max_iters: 5000
+  eval_interval: 500
+  learning_rate: 0.0005
+  eval_iters: 200
+  save_interval: 100
+  checkpoint: "examples/saved/SedenionGPT.pt"
+
+mlflow:
+  experiment: ""
+  log_interval: 10
+  deep_log_interval: 0
+  system_metrics: false
+
+data:
+  input_path: "examples/data/shakespeare.txt"
+  vocab_save_path: "examples/saved/char.txt"
