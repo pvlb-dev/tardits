@@ -9,61 +9,6 @@ There may be better uses for CVNNs than predicting text... but why not Shakespea
 
 <br>
 
-## 🔥 Hot Curves (Benchmarks & Results)
-<details>
-<summary><b>Click to expand 🔻</b></summary>
-
-<br>
-
-### 🌊 SAIL Interference Patterns ($\mathbb{C}$)
-
-#### 2D SAIL Interference Evolution
-[![4 Layer SAIL](https://img.youtube.com/vi/nFiWQWMtX-Q/0.jpg)](https://www.youtube.com/watch?v=nFiWQWMtX-Q)
-[![8 Layer SAIL](https://img.youtube.com/vi/OIvpBzp8Y8c/0.jpg)](https://youtube.com/shorts/OIvpBzp8Y8c?si=LPVmYf6Skw9IRELd)
-
-#### 3D SAIL Phase-Amplitude Topography
-[![3D 4 Layer SAIL](https://img.youtube.com/vi/r6ykSiY3ipY/0.jpg)](https://youtu.be/r6ykSiY3ipY?si=VosKe4IpfWTy1jbz)
-[![3D 8 Layer SAIL](https://img.youtube.com/vi/7kjrDF7-UUg/0.jpg)](https://youtube.com/shorts/7kjrDF7-UUg?si=jcLONq29jUDC2mVX)
-
-*Figure: Evolution of selective phase interference across all 8 Transformer layers over training steps. Deep layers (6 & 7) demonstrate extreme destructive phase cancellation alongside razor-sharp resonance peaks ($> 10,000$ amplitude). That's why the Post-Norm design makes a lot of sense here*
-
-<br>
-
-### 📉 Comparison Runs
-
-shared parameters:
-
-| batch_size | block_size | dropout | learning rate | vocab_size |
-| :--------- | :--------: | :-----: | :-----------: | ---------- |
-| 32         |    128     |   0.2   |    0.0005     | 65         |
-
-#### $\mathbb{C}$ vs $\mathbb{R}$ / both ~180k params
-<img width="1745" height="828" alt="Image" src="https://github.com/user-attachments/assets/0d506bfc-471a-4ffa-bf06-c882151ad470" />
-
-| Model          |    Space     | $n_{embd}$ | Layers | Heads | Params | Train Loss | Val Loss  |
-| :------------- | :----------: | :--------: | :----: | :---: | :----: | :--------: | :-------: |
-| **ComplexGPT** | $\mathbb{C}$ |     54     |   4    |   6   | ~179k  | **1.472**  | **1.704** |
-| **RealGPT**    | $\mathbb{R}$ |     60     |   4    |   6   | ~181k  |   1.526    |   1.759   |
-
-#### $\mathbb{R}$ vs the complex rest
-
-Number of parameters scaled. The unoptimised octonion and sedenion math needs *forever* to compute... and all the runs were done on a thinkpad CPU 🫣
-
-<img width="1760" height="842" alt="Image" src="https://github.com/user-attachments/assets/78f152ca-ceab-435a-9b36-629031519223" />
-*Figure: Training and validation loss trajectories across spaces ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}, \mathbb{S}$). Note how Complex-383k (green) consistently outperforms the larger Real-baseline (blue).*
-
-| Model             |    Space     | $n_{embd}$ | Layers | Heads | Params | Train Loss | Val Loss  |
-| :---------------- | :----------: | :--------: | :----: | :---: | :----: | :--------: | :-------: |
-| **RealGPT**       | $\mathbb{R}$ |     96     |   5    |   6   | ~567k  |   1.367    |   1.645   |
-| **ComplexGPT**    | $\mathbb{C}$ |     72     |   5    |   6   | ~384k  | **1.359**  |   1.633   |
-| **QuaternionGPT** | $\mathbb{H}$ |     54     |   4    |   4   | ~356k  |   1.367    | **1.633** |
-| **OctonionGPT**   | $\mathbb{O}$ |     32     |   4    |   4   | ~264k  |   1.398    |   1.668   |
-| **SedenionGPT**   | $\mathbb{S}$ |     18     |   4    |   6   | ~184k  |   1.460    |   1.702   |
-
-<br><br>
-
-
-</details>
 
 ## 🙃 Architecture
 <details>
@@ -148,6 +93,63 @@ This scales feature amplitudes cleanly across layers while leaving phase angles 
 
 </details>
 
+## 🔥 Hot Curves (Benchmarks & Results)
+<details>
+<summary><b>Click to expand 🔻</b></summary>
+
+<br>
+
+### 🌊 SAIL Interference Patterns ($\mathbb{C}$)
+
+#### 🎬 2D SAIL Interference Evolution
+[![4 Layer SAIL](https://img.youtube.com/vi/nFiWQWMtX-Q/0.jpg)](https://www.youtube.com/watch?v=nFiWQWMtX-Q)
+[![8 Layer SAIL](https://img.youtube.com/vi/OIvpBzp8Y8c/0.jpg)](https://youtube.com/shorts/OIvpBzp8Y8c?si=LPVmYf6Skw9IRELd)
+
+#### 🎬 3D SAIL Phase-Amplitude Topography
+[![3D 4 Layer SAIL](https://img.youtube.com/vi/r6ykSiY3ipY/0.jpg)](https://youtu.be/r6ykSiY3ipY?si=VosKe4IpfWTy1jbz)
+[![3D 8 Layer SAIL](https://img.youtube.com/vi/7kjrDF7-UUg/0.jpg)](https://youtube.com/shorts/7kjrDF7-UUg?si=jcLONq29jUDC2mVX)
+
+*Figure: Evolution of selective phase interference across all 8 Transformer layers over training steps. Deep layers (6 & 7) demonstrate extreme destructive phase cancellation alongside razor-sharp resonance peaks (> 10,000 amplitude). That's why the Post-Norm design makes a lot of sense here*
+
+<br>
+
+### 📉 Comparison Runs
+
+shared parameters:
+
+| batch_size | block_size | dropout | learning rate | vocab_size |
+| :--------- | :--------: | :-----: | :-----------: | ---------- |
+| 32         |    128     |   0.2   |    0.0005     | 65         |
+
+#### $\mathbb{C}$ vs $\mathbb{R}$ / both ~180k params
+<img width="1745" height="828" alt="Image" src="https://github.com/user-attachments/assets/0d506bfc-471a-4ffa-bf06-c882151ad470" />
+
+| Model          |    Space     | $n_{embd}$ | Layers | Heads | Params | Train Loss | Val Loss  |
+| :------------- | :----------: | :--------: | :----: | :---: | :----: | :--------: | :-------: |
+| **ComplexGPT** | $\mathbb{C}$ |     54     |   4    |   6   | ~179k  | **1.472**  | **1.704** |
+| **RealGPT**    | $\mathbb{R}$ |     60     |   4    |   6   | ~181k  |   1.526    |   1.759   |
+
+#### $\mathbb{R}$ vs the complex rest
+
+Number of parameters scaled. The unoptimised octonion and sedenion math needs *forever* to compute... and all the runs were done on a thinkpad CPU 🫣
+
+<img width="1760" height="842" alt="Image" src="https://github.com/user-attachments/assets/78f152ca-ceab-435a-9b36-629031519223" />
+*Figure: Training and validation loss trajectories across spaces ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}, \mathbb{S}$). Note how Complex-383k (green) consistently outperforms the larger Real-baseline (blue).*
+
+| Model             |    Space     | $n_{embd}$ | Layers | Heads | Params | Train Loss | Val Loss  |
+| :---------------- | :----------: | :--------: | :----: | :---: | :----: | :--------: | :-------: |
+| **RealGPT**       | $\mathbb{R}$ |     96     |   5    |   6   | ~567k  |   1.367    |   1.645   |
+| **ComplexGPT**    | $\mathbb{C}$ |     72     |   5    |   6   | ~384k  | **1.359**  |   1.633   |
+| **QuaternionGPT** | $\mathbb{H}$ |     54     |   4    |   4   | ~356k  |   1.367    | **1.633** |
+| **OctonionGPT**   | $\mathbb{O}$ |     32     |   4    |   4   | ~264k  |   1.398    |   1.668   |
+| **SedenionGPT**   | $\mathbb{S}$ |     18     |   4    |   6   | ~184k  |   1.460    |   1.702   |
+
+<br><br>
+
+
+</details>
+
+
 ## 🚀 Quickstart & Usage
 
 ### 📁 Repository Structure
@@ -186,10 +188,8 @@ tardits/
 ```bash
 # Arch
 pacman -S uv
-
-# Debian/Ubuntu
-apt install uv
 ```
+for other distros: [install uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### git pull, .venv & dependencies
 
@@ -307,3 +307,10 @@ options:
 * Would Quantization work out?
 * Add a tokenizer (the models were already tested on tokenized text during development - but it shrinks the already tiny dataset)
 * Maaaybe get a GPU (+ all the stuff around it 💰🔥 :D or rent online compute...)
+
+## 🛣️ v0.2.0 Roadmap (Work in Progress)
+
+- [ ] **Dynamic Dimension Scaling:** Universal recursive Cayley-Dickson engine ($2^k$ dimensions, $\mathbb{C} \to \mathbb{S}$ and beyond)
+- [ ] **Native Tensor Ops:** Pure PyTorch dimension transformations (`views`, broadcasting)
+- [ ] **Package Refactoring:** Clean `src/`-layout for library distribution
+- [ ] **PyPI Release:** Easy installation via `pip install tardits` / `uv add tardits`
