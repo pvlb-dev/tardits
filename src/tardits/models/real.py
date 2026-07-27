@@ -2,9 +2,62 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from modules.r import RoPE, SwiGLU
-from modules import LMCoreMixin
-from modules.conf import ModelConfig
+from tardits.modules import LMCoreMixin
+from tardits.modules.conf import ModelConfig
+
+
+class RotaryPositionalEmbedding(nn.Module):
+    """🌀 Rotates query/key pairwise in the complex plane based on position."""
+
+    def __init__(self, head_size, block_size):
+        super().__init__()
+        self.head_size = head_size
+
+        inv_freq = 1.0 / (
+            10000.0 ** (torch.arange(0, head_size, 2).float() / head_size)
+        )
+        t = torch.arange(block_size, dtype=torch.float32)
+        freqs = torch.outer(t, inv_freq)
+        self.emb = torch.cat((freqs, freqs), dim=-1)
+
+        self.register_buffer("cos_cached", self.emb.cos(), persistent=False)
+        self.register_buffer("sin_cached", self.emb.sin(), persistent=False)
+        self.cos_cached: torch.Tensor
+        self.sin_cached: torch.Tensor
+
+    def _rotate_half(self, x):
+        x1 = x[..., : self.head_size // 2]
+        x2 = x[..., self.head_size // 2 :]
+        return torch.cat((-x2, x1), dim=-1)
+
+    def forward(self, x):
+        # x.shape: (B, nh, T, hs)
+        T = x.shape[2]
+        cos = self.cos_cached[:T, :].unsqueeze(0).unsqueeze(1)  # (1, 1, T, hs)
+        sin = self.sin_cached[:T, :].unsqueeze(0).unsqueeze(1)  # (1, 1, T, hs)
+
+        return (x * cos) + (self._rotate_half(x) * sin)
+
+
+RoPE = RotaryPositionalEmbedding
+
+
+class SwiGLU(nn.Module):
+    """🚀 SwiGLU Feed-Forward Network."""
+
+    def __init__(self, n_embd, hidden_dim, dropout):
+        super().__init__()
+        self.w = nn.Linear(n_embd, hidden_dim, bias=False)
+        self.v = nn.Linear(n_embd, hidden_dim, bias=False)
+        self.out_proj = nn.Linear(hidden_dim, n_embd, bias=False)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        gate = F.silu(self.w(x))
+        activated = gate * self.v(x)
+        out = self.out_proj(activated)
+
+        return self.dropout(out)
 
 
 class CasualSelfAttention(nn.Module):
@@ -47,7 +100,7 @@ class CasualSelfAttention(nn.Module):
         q = self.rope(q)
         k = self.rope(k)
 
-        wei = q @ k.transpose(-2, -1) * self.head_size**-0.5  # (B,nh,T,T)
+        wei = q @ k.transpose(-2, -1) * (self.head_size**-0.5)  # (B,nh,T,T)
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))  # (B,nh,T,T)
         wei = F.softmax(wei, dim=-1)  # (B,nh,T,T)
         wei = self.dropout(wei)  # (B,nh,T,T)

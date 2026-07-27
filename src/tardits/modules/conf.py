@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ModelConfig:
+    level: int = 1
     block_size: int = 8  # maximum context length
     vocab_size: int = 74
     n_head: int = 4

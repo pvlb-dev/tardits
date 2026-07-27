@@ -65,6 +65,9 @@ class LMCoreMixin:
 
     def save_checkpoint(self, filepath="checkpoint.pt"):
         """saves model weights and config to disk"""
+        dirname = os.path.dirname(filepath)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         checkpoint = {"model_state_dict": self.state_dict(), "config": self.config}
         torch.save(checkpoint, filepath)
         # print(f"💾 checkpoint successfully saved: {filepath}")
@@ -81,7 +84,9 @@ class LMCoreMixin:
         return total_params
 
     @classmethod
-    def load_from_checkpoint(cls, filepath="checkpoint.pt", device="cpu"):
+    def load_from_checkpoint(
+        cls, filepath="checkpoint.pt", device: str | torch.device = "cpu"
+    ):
         """loads model state from checkpoint file"""
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"❌ file not found:\n{filepath}")

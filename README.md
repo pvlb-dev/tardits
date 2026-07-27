@@ -24,7 +24,7 @@ Figure: Complete dataflow inside the Transformer block, showing the transition f
 ### ⛵ SAIL (Self-Activating Interference Layer)
 The main idea. In standard $\mathbb{R}$-nets, non-linear activation functions (like GELU or SwiGLU) in the feed-forward layer are strictly necessary. However, multiplying two complex numbers is inherently non-linear in itself. **SAIL** is essentially SwiGLU without the "Swi": It splits the input via a Linear Layer into two parts and multiplies them together. That alone is sufficient to get a fully trainable complex transformer. Combined with residual connections `z = z + SAIL(z)`, my guess is it could also be chaotic somehow (think Mandelbrot set).
 
-### 🪢 RoPE - Full Circle
+### 🪢 GyRoPE - learnable RoPE, full circle
 While ~~implementing~~ experimenting with RoPE in my $\mathbb{R}$-net, I found that a trainable RoPE initialized randomly from $-2\pi$ to $2\pi$ yielded results comparable to classical positive positional encodings. This proved to work nicely with the complex transformers. However the weights are few and they change *really* slowly during training.
 
 * $\mathbb{C}$-RoPE rotates in the $2\mathcal{D}$ complex plane.
@@ -131,7 +131,7 @@ shared parameters:
 
 #### $\mathbb{R}$ vs the complex rest
 
-Number of parameters scaled. The unoptimised octonion and sedenion math needs *forever* to compute... and all the runs were done on a thinkpad CPU 🫣
+Number of parameters scaled. Note: the higher dimensional runs take *forever*. A "Sedenion" needs 256 multiplications instead of one.
 
 <img width="1760" height="842" alt="Image" src="https://github.com/user-attachments/assets/78f152ca-ceab-435a-9b36-629031519223" />
 *Figure: Training and validation loss trajectories across spaces ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}, \mathbb{S}$). Note how Complex-383k (green) consistently outperforms the larger Real-baseline (blue).*
@@ -144,6 +144,14 @@ Number of parameters scaled. The unoptimised octonion and sedenion math needs *f
 | **OctonionGPT**   | $\mathbb{O}$ |     32     |   4    |   4   | ~264k  |   1.398    |   1.668   |
 | **SedenionGPT**   | $\mathbb{S}$ |     18     |   4    |   6   | ~184k  |   1.460    |   1.702   |
 
+<br>
+
+<details>
+<summary><b>v0.2.0 Bonus - Centumduodevigintunions 🔻</b></summary>
+<img width="1247" height="809" alt="image" src="https://github.com/user-attachments/assets/81aa403d-4203-48ef-8b90-ff45367b2f1c" />
+It's ridiculous, pointless and I can't even spell it... but it runs (very slowly). The most interesting usecases may be found on level 1-3 ;)
+</details>
+
 <br><br>
 
 
@@ -152,165 +160,92 @@ Number of parameters scaled. The unoptimised octonion and sedenion math needs *f
 
 ## 🚀 Quickstart & Usage
 
-### 📁 Repository Structure
-<details>
-<summary>Click to expand 🔻</summary>
-<br>
 
-```text
-tardits/
-├── examples/              # YAML configs, datasets, and saved checkpoints
-│   ├── configs/
-│   ├── data/
-│   └── saved/
-├── models/                # High-level architecture + Attention
-│   ├── complex.py         # ComplexGPT (ℂ)
-│   ├── quaternion.py      # QuaternionGPT (ℍ)
-│   ├── octonion.py        # OctonionGPT (𝕆)
-│   ├── sedenion.py        # SedenionGPT (𝕊)
-│   └── real.py            # RealGPT Baseline (ℝ)
-├── modules/               # Hypercomplex building blocks
-│   ├── c/                 # SAIL, RMSNorm, RoPE, Embeddings for ℂ
-│   ├── h/                 # ... for ℍ (Quaternion)
-│   ├── o/                 # ... for 𝕆 (Octonion)
-│   ├── s/                 # ... for 𝕊 (Sedenion)
-│   └── r/                 # Real-valued standard layers
-│   ├── base.py            # LMCoreMixin (generation, checkpoints, param counting)
-│   ├── conf.py            # dataclass configurations
-│   └── logging.py         # Console and MLFlow Logging
-├── train.py               # Main CLI training script
-└── gen.py                 # CLI text generation & streaming script
-```
-</details>
-
-### prerequisites: uv 💜
+### Install
 
 ```bash
-# Arch
-pacman -S uv
+pip install tardits
+# or
+uv add tardits
 ```
-for other distros: [install uv](https://docs.astral.sh/uv/getting-started/installation/)
 
-### git pull, .venv & dependencies
+Optional - for [MLFlow](https://github.com/mlflow/mlflow) experiment tracking:
 
 ```bash
-git clone https://github.com/pvlb-dev/tardits.git
-cd tardits
-
-### for CPU-only pytorch:
-cp pyproject.cpu.toml pyproject.toml
-###
-
-uv sync
-
-# optional: include MLFlow for experiment tracking
-uv sync --extra mlflow
+pip install tardits[mlflow]
 ```
 
 ### Quickstart
 
+#### Example configuration (save as .yaml):
+```yaml
+device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
+seed: 1337
+
+model:
+  level: 1 # Complex
+  block_size: 64
+  n_head: 6
+  n_embd: 42
+  n_layer: 4
+  dropout: 0.2
+
+trainer:
+  batch_size: 32
+  max_iters: 5000
+  eval_interval: 500
+  learning_rate: 0.0005
+  eval_iters: 200
+  save_interval: 0
+  checkpoint: "saved_model.pt"
+
+mlflow:
+  experiment: "" # add name to enable
+  log_interval: 10
+  deep_log_interval: 0
+  system_metrics: false
+
+data:
+  input_path: "my_training_data.txt"
+  vocab_save_path: "saved/charset.txt"
+```
+You can also take a config from [examples/configs] and the shakespeare.txt form [examples/data]
+
+
+#### Start Training
 ```bash
-# start the default complex training run (~10-20min on CPU)
-uv run train.py
-
-# open another terminal and watch your model during training:
-uv run gen.py -f
-
-# example output of a quaternion model during training:
-"HAMCIUS:
-Shart, my sowleth in life:
-The blood." 
-
-# copy a yaml-config, change some settings, use some other data...
-cp examples/configs/complex.yaml better-config.yaml
-vim better-config.yaml # you can of course use an inferior editor of your choice :P
-uv run train.py -c better-config.yaml
+ttrain -c config.yaml
 ```
 
-In `examples/configs` you'll find an example config file for every transformer type. They are scaled to train in about 10-15 minutes on CPU... so Sedenion will naturally be a bit dumb. But it's trying :D
+#### Generate Text
+```bash
+tgen -c config.yaml -p "To be or not to be" -l 200
 
-Behold the output of a practically weightless sedenion model:
-
-  | sedenion-nano |    |
-  | ------------- | -- |
-  | parameters:| 12052 |
-  | embd:  | 4 |
-  | heads: | 2 |
-  | layers: | 2 |
-  | training-time (CPU): | 15 min |
-  | val-loss | 2.06 |
-
-text sample:
-
-```
-MENUUS:
-On woold
-Now, a davold sper orted's al this am daing;
-And spails sees,, thy ther, in whathe sheich our hasond:
-No thee bod to the that sacest.
-Now have he dice han, sat thou din is sose and tale.
-
-MEANG RIO:
-Beave, thould, this, a by lame shis;
-He shat thean ws.'
-Fring Ed am afold foong instrow ingaing imp in is thour he ponereainds,
-Hirset.
-Think were, a affor whal a peadd orsow nowsome athing?
-
-```
-Fun Fact: At n_embd=4, this model literally has more algebraic dimensions per component (16) than embedding features (4) — it is mathematically wider than it is long. The checkpoint-file weighs about 100kb. Fits onto a floppy disk 💾😅
-
-### train.py
-
-```
----------------------------------------------------
-train.py -h 
----------------------------------------------------
-usage: train.py [-h] [--config CONFIG]
-
-Train hypercomplex transformers using YAML configs
-
+tgen -h
 options:
--h, --help show this help message and exit
---config, -c CONFIG Path to YAML configuration file
+  -h, --help            show this help message and exit
+  --config, -c CONFIG   Path to YAML configuration file
+  --checkpoint CHECKPOINT
+                        Optional override for model checkpoint path
+  --vocab VOCAB         Optional override for vocab path
+  --prompt, -p PROMPT   Text prompt to start generation
+  --length, -l LENGTH   Number of tokens to generate
+  --temp, -t TEMP       Model sampling temperature
+  --top_k, -k TOP_K     Top-k sampling threshold
+  --follow, -f          Endless stream of tokens
+  --delay DELAY         Delay between tokens in follow mode (seconds)
 ```
 
-### gen.py
 
-```
----------------------------------------------------
-gen.py -h
----------------------------------------------------
-usage: gen.py [-h] [--config CONFIG] [--checkpoint CHECKPOINT] [--vocab VOCAB] [--prompt PROMPT] [--length LENGTH] [--temp TEMP] [--top_k TOP_K] [--follow] [--delay DELAY]
+### v0.2.0 (Current Release)
+- [x] **Dynamic Dimension Scaling:** Universal recursive Cayley-Dickson engine ($2^k$ dimensions, up to 128D Centumduodevigintunion)
+- [x] **Package Refactoring:** Clean library structure for distribution
+- [x] **CLI Tools:** Easy executions via `ttrain` and `tgen`
+- [x] **PyPI Release:** Official package published on PyPI
 
-Generates text from a trained model using its YAML config
 
-options: 
--h, --help show this help message and exit 
---config, -c CONFIG Path to YAML configuration file 
---checkpoint CHECKPOINT Optional override for model checkpoint path 
---vocab VOCAB Optional override for vocab path 
---prompt, -p PROMPT Text prompt to start generation 
---length, -l LENGTH Number of tokens to generate 
---temp, -t TEMP Model sampling temperature 
---top_k, -k TOP_K Top-k sampling threshold 
---follow, -f Endless stream of tokens watching checkpoint updates in real-time 
---delay DELAY Delay between tokens in follow mode (seconds)
-```
-
-## 🧭 Outlook / Ideas
-
-* Rewrite the crazy variable juggling into torch-dimensions
-* Try out the architecture on higher dimensional input (audio? weather? 3D?...)
-* Dimension maxxing - when will it blow up? Would 32D still work? 64D?
-* Also more traditional scaling. How stable are the $\mathbb{C}$ and $\mathbb{H}$ nets really?
-* Would Quantization work out?
-* Add a tokenizer (the models were already tested on tokenized text during development - but it shrinks the already tiny dataset)
-* Maaaybe get a GPU (+ all the stuff around it 💰🔥 :D or rent online compute...)
-
-## 🛣️ v0.2.0 Roadmap (Work in Progress)
-
-- [ ] **Dynamic Dimension Scaling:** Universal recursive Cayley-Dickson engine ($2^k$ dimensions, $\mathbb{C} \to \mathbb{S}$ and beyond)
-- [ ] **Native Tensor Ops:** Pure PyTorch dimension transformations (`views`, broadcasting)
-- [ ] **Package Refactoring:** Clean `src/`-layout for library distribution
-- [ ] **PyPI Release:** Easy installation via `pip install tardits` / `uv add tardits`
+## 🧭 Outlook v0.3.0 - Tesseract
+- [x] **Logit Distillation Engine:** Native `DistillTrainer` supporting dynamic teacher-student logit alignment (e.g., SmolLM2)
+- [x] **Interactive TUI:** Simple terminal-based chat interface (`tchat`)
+- [ ] **Tesseract Model Series:** Releasing small-footprint hypercomplex chat models (2D/4D/8D) on HuggingFace
+- [ ] **GGUF & Ollama Integration:** One-click export for local deployment (`ollama run tesseract...`)
