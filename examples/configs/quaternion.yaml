@@ -2,7 +2,7 @@ device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
 seed: 1337
 
 model:
-  type: "Quat" # Choices: Real, Complex, Quat, Octo, Sedenion
+  level: 2 # Quaternion
   block_size: 64
   n_head: 4
   n_embd: 24

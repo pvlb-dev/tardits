@@ -1,10 +1,8 @@
 import math
 import time
-from matplotlib import animation
-from matplotlib import pyplot as plt
 import numpy as np
 import torch
-from modules.conf import MLFlowConfig
+from tardits.modules.conf import MLFlowConfig
 
 try:
     import mlflow
@@ -73,7 +71,7 @@ class MLFlowLogger:
 
                 return hook_fn
 
-            handle = block.ffwd.register_forward_hook(make_hook(layer_idx))
+            handle = block.sail.register_forward_hook(make_hook(layer_idx))
             handles.append(handle)
 
         with torch.no_grad():
@@ -82,9 +80,6 @@ class MLFlowLogger:
         for handle in handles:
             handle.remove()
 
-        # -------------------------------------------------------------
-        # 3. SAIL METRICS SCHICHTWEISE EXTRAHIEREN 📊
-        # -------------------------------------------------------------
         num_layers = len(model.blocks)
         layer_metrics = {}
 
@@ -147,6 +142,10 @@ class MLFlowLogger:
     def on_train_end(self, trainer, losses):
         if not mlflow:
             return
+
+        from matplotlib import animation
+        from matplotlib import pyplot as plt
+
         mlflow.log_metrics(
             {"train loss": losses["train"], "val loss": losses["val"]},
             step=trainer.step,
@@ -156,9 +155,7 @@ class MLFlowLogger:
         cols = 2 if num_layers > 1 else 1
         rows = math.ceil(num_layers / cols)
 
-        # =============================================================
-        # 1. 2D MULTI-LAYER SAIL GIF 🎬
-        # =============================================================
+        #  2D MULTI-LAYER SAIL GIF
         if self.frames_data:
             print("🎬 Rendering 2D Multi-Layer SAIL Phase Interference GIF...")
             fig_2d, axes_2d = plt.subplots(
@@ -192,9 +189,7 @@ class MLFlowLogger:
             plt.close(fig_2d)
             mlflow.log_artifact(gif_path_2d, artifact_path="animations")
 
-            # =============================================================
-            # 2. 🌋 3D MULTI-LAYER SAIL TOPOGRAPHY GIF
-            # =============================================================
+            # 2. 3D MULTI-LAYER SAIL TOPOGRAPHY GIF
             print("🎬 Rendering 3D Multi-Layer SAIL Phase-Amplitude Topography GIF...")
             fig_3d = plt.figure(figsize=(6 * cols, 5 * rows))
 

@@ -4,7 +4,7 @@ device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
 seed: 1337
 
 model:
-  type: "Complex" # Choices: Real, Complex, Quat, Octo, Sedenion
+  level: 1 # Complex
   block_size: 128
   n_head: 4
   n_embd: 64

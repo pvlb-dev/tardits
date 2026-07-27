@@ -1,6 +1,6 @@
 import torch
-from modules.conf import TrainerConfig
-from modules.logging import ConsoleLogger
+from tardits.modules.conf import TrainerConfig
+from tardits.modules.logging import ConsoleLogger
 
 
 class Trainer:
