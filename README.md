@@ -245,7 +245,8 @@ options:
 
 
 ## 🧭 Outlook v0.3.0 - Tesseract
-- [x] **Logit Distillation Engine:** Native `DistillTrainer` supporting dynamic teacher-student logit alignment (e.g., SmolLM2)
+- [x] **Logit Distillation Engine:** `DistillTrainer` supporting dynamic teacher-student logit alignment (e.g., SmolLM2)
+- [x] **Synth Training Data:** skript to generate customized synthetic train data
 - [x] **Interactive TUI:** Simple terminal-based chat interface (`tchat`)
-- [ ] **Tesseract Model Series:** Releasing small-footprint hypercomplex chat models (2D/4D/8D) on HuggingFace
+- [ ] **Tesseract Model Series:** Releasing small-footprint complex chat models (2D/4D) on HuggingFace
 - [ ] **GGUF & Ollama Integration:** One-click export for local deployment (`ollama run tesseract...`)
