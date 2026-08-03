@@ -249,4 +249,3 @@ options:
 - [x] **Synth Training Data:** skript to generate customized synthetic train data
 - [x] **Interactive TUI:** Simple terminal-based chat interface (`tchat`)
 - [ ] **Tesseract Model Series:** Releasing small-footprint complex chat models (2D/4D) on HuggingFace
-- [ ] **GGUF & Ollama Integration:** One-click export for local deployment (`ollama run tesseract...`)
