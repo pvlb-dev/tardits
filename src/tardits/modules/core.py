@@ -171,7 +171,7 @@ class SAIL(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h1 = self.w1(x)
         h2 = self.w2(x)
-        interfered = h1 * h2
+        interfered = cd_mul(h1, h2, self.level)
         out = self.w3(interfered)
         return out
 
