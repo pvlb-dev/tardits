@@ -2,15 +2,24 @@ name: Publish to the Forgejo registry
 
 # Real publishes only happen for tags (v*). A manual run is a dry run: it
 # builds and checks the package but uploads nothing.
+#
+# Authentication uses a Forgejo Authorized Integration: the workflow requests a
+# short-lived OIDC JWT scoped to this repo, workflow, ref and event, and uses it
+# as the registry password (username = the actor). No long-lived token secret.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
 
+enable-openid-connect: true
+
 jobs:
   publish:
     runs-on: docker
     timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,21 +44,30 @@ jobs:
       - name: Check the package metadata
         run: ~/.local/bin/uvx twine check dist/*
 
+      - name: Fetch the Authorized Integration token
+        id: oidc
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          AUD: u:1:ee678e1d-2703-4241-b83e-c605e38882dd
+        run: |
+          set -eu
+          jwt=$(curl --fail -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["value"])')
+          test -n "$jwt"
+          echo "jwt=$jwt" >> "$GITHUB_OUTPUT"
+
       - name: Publish to the pvlb.dev PyPI registry
         if: startsWith(github.ref, 'refs/tags/v')
         env:
-          REGISTRY_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
-          REGISTRY_USER: ${{ vars.FORGEJO_USER }}
+          REGISTRY_TOKEN: ${{ steps.oidc.outputs.jwt }}
         run: |
           set -eu
-          user="${REGISTRY_USER:-dsh}"
-          if [ -z "${REGISTRY_TOKEN:-}" ]; then
-            echo "::error::FORGEJO_TOKEN is empty. Add a repository Actions secret FORGEJO_TOKEN with a Forgejo token that has the write:package scope (owner: $user)."
-            exit 1
-          fi
+          user="${GITHUB_ACTOR:-dsh}"
           version="$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -n1)"
           api="https://git.pvlb.dev/api/v1/packages/ml-lab/pypi/tardits/$version"
-          status="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: token $REGISTRY_TOKEN" "$api")"
+          status="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $REGISTRY_TOKEN" "$api")"
           if [ "$status" = "200" ]; then
             echo "tardits $version is already in the Forgejo registry; nothing to do."
             exit 0
