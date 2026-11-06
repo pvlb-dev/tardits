@@ -1,0 +1,61 @@
+name: Publish to the Forgejo registry
+
+# Real publishes only happen for tags (v*). A manual run is a dry run: it
+# builds and checks the package but uploads nothing.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: docker
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Verify the release tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -n1)"
+          test -n "$version"
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::Tag $tag does not match pyproject version v$version. Bump pyproject.toml or retag."
+            exit 1
+          fi
+
+      - name: Build the distributions
+        run: ~/.local/bin/uv build
+
+      - name: Check the package metadata
+        run: ~/.local/bin/uvx twine check dist/*
+
+      - name: Publish to the pvlb.dev PyPI registry
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          REGISTRY_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+          REGISTRY_USER: ${{ vars.FORGEJO_USER }}
+        run: |
+          set -eu
+          user="${REGISTRY_USER:-dsh}"
+          if [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "::error::FORGEJO_TOKEN is empty. Add a repository Actions secret FORGEJO_TOKEN with a Forgejo token that has the write:package scope (owner: $user)."
+            exit 1
+          fi
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -n1)"
+          api="https://git.pvlb.dev/api/v1/packages/ml-lab/pypi/tardits/$version"
+          status="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: token $REGISTRY_TOKEN" "$api")"
+          if [ "$status" = "200" ]; then
+            echo "tardits $version is already in the Forgejo registry; nothing to do."
+            exit 0
+          fi
+          ~/.local/bin/uv publish \
+            --publish-url "https://git.pvlb.dev/api/packages/ml-lab/pypi" \
+            --username "$user" \
+            --password "$REGISTRY_TOKEN" \
+            dist/*

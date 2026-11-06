@@ -1,0 +1,51 @@
+name: CI
+
+# No pull_request trigger on purpose: the shared Forgejo runner gives job
+# containers the host's Docker socket, so only maintainer-controlled events
+# (push to master or a release branch, manual dispatch) may execute a workflow.
+on:
+  push:
+    branches:
+      - master
+      - "release/**"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: docker
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Sync dependencies
+        run: ~/.local/bin/uv sync --locked
+
+      - name: Byte-compile the package
+        run: ~/.local/bin/uv run python -m compileall -q src/tardits
+
+      - name: Import smoke test
+        run: |
+          ~/.local/bin/uv run python - <<'PY'
+          import tardits.train
+          import tardits.gen
+          from tardits.models import RealGPT
+          print("imports ok:", RealGPT.__name__)
+          PY
+
+      - name: Tests (when the tree has a suite)
+        run: |
+          if [ -d tests ]; then
+            ~/.local/bin/uv run --with pytest pytest -q
+          else
+            echo "No tests/ on this branch yet (the 0.3.0 tree adds them)."
+          fi
+
+      - name: Build the distributions
+        run: ~/.local/bin/uv build
+
+      - name: Check the package metadata
+        run: ~/.local/bin/uvx twine check dist/*
