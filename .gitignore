@@ -17,3 +17,15 @@ examples/saved/*
 # mlflow
 mlflow.db
 mlruns/
+
+# Agent home: local-only working files (map: AGENTS.md)
+/devops/
+/GIT.md
+/input
+
+# Local caches and generated media
+.uv-cache/
+.cache/
+.pytest_cache/
+*.mp4
+docs/assets/art/source/
