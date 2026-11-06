@@ -1,5 +1,8 @@
 # AGENTS.md - TARDITS working map
 
+> **If unsure, ask.** One short question beats a wrong assumption or a long
+> detour. Do not guess, and do not disappear into research to avoid asking.
+
 **This file is a map, not the manual.** The harness loads it as instructions and
 truncates past 65,536 bytes from the tail, so detail lives in the linked topic
 files. If a task touches a row in the trigger table below, read that file first.
