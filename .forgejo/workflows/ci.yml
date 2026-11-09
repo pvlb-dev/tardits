@@ -3,6 +3,10 @@ name: CI
 # No pull_request trigger on purpose: the shared Forgejo runner gives job
 # containers the host's Docker socket, so only maintainer-controlled events
 # (push to master or a release branch, manual dispatch) may execute a workflow.
+#
+# Pushes only test. Packaging (build + twine check + upload) lives in the
+# tag-triggered publish.yml / publish-pypi.yml, so it runs on a release, not on
+# every commit.
 on:
   push:
     branches:
@@ -43,9 +47,3 @@ jobs:
           else
             echo "No tests/ on this branch yet (the 0.3.0 tree adds them)."
           fi
-
-      - name: Build the distributions
-        run: ~/.local/bin/uv build
-
-      - name: Check the package metadata
-        run: ~/.local/bin/uvx twine check dist/*

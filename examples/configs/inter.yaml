@@ -4,6 +4,7 @@ device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
 seed: 1337
 
 model:
+  arch: rat # real | hyper | rat
   level: 1 # Complex
   block_size: 128
   n_head: 4
@@ -18,7 +19,7 @@ trainer:
   learning_rate: 0.001
   eval_iters: 200
   save_interval: 0
-  checkpoint: "examples/saved/test_GPT.pt"
+  checkpoint: "examples/saved/test.pt"
 
 mlflow:
   experiment: "interference"

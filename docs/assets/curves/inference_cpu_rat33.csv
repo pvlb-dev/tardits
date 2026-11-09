@@ -1,0 +1,5 @@
+model,arch,level,params,prompt_len,new_tokens,prefill_seconds,seconds,decode_tokens_per_sec
+rat33,RAT,1,33374720,16,16,0.041797,0.208730,76.65
+rat33,RAT,1,33374720,128,16,0.191286,0.206906,77.33
+rat33,RAT,1,33374720,512,16,0.679269,0.201766,79.30
+rat33,RAT,1,33374720,2048,16,2.297150,0.212429,75.32

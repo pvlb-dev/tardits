@@ -1,0 +1,5 @@
+model,arch,level,params,prompt_len,new_tokens,prefill_seconds,seconds,decode_tokens_per_sec
+real48,RealGPT,0,47907744,16,16,0.023247,0.299930,53.35
+real48,RealGPT,0,47907744,128,16,0.084039,0.304882,52.48
+real48,RealGPT,0,47907744,512,16,0.374871,0.319564,50.07
+real48,RealGPT,0,47907744,2048,16,2.952367,0.410564,38.97

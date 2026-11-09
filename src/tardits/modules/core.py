@@ -1,6 +1,8 @@
+import functools
 import math
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 
 
 def cd_conjugate(x: torch.Tensor, level: int) -> torch.Tensor:
@@ -43,6 +45,34 @@ def cd_mul(a: torch.Tensor, b: torch.Tensor, level: int) -> torch.Tensor:
     return torch.cat([res_left, res_right], dim=-1)
 
 
+@functools.lru_cache(maxsize=None)
+def _cd_multiplication_table(level: int) -> torch.Tensor:
+    """Dense real Cayley-Dickson multiplication table.
+
+    Returns ``T`` of shape ``[n, n, n]`` (``n = 2**level`` real dims) such that
+    the product ``c = a (x) b`` satisfies ``c_r = sum_{p,q} T[p, q, r] a_p b_q``.
+
+    Real-dim ordering: dim ``2k`` is ``component[k].real`` and dim ``2k + 1`` is
+    ``component[k].imag``. Built from the existing ``cd_mul`` on one-hot basis
+    vectors so the table is always consistent with the recursive implementation.
+    """
+    n = 2 ** level
+    hyper_dim = 2 ** (level - 1)
+    table = torch.zeros(n, n, n)
+
+    for i in range(n):
+        a = torch.zeros(hyper_dim, dtype=torch.complex64)
+        a[i // 2] = 1j if i % 2 else (1.0 + 0.0j)
+        for j in range(n):
+            b = torch.zeros(hyper_dim, dtype=torch.complex64)
+            b[j // 2] = 1j if j % 2 else (1.0 + 0.0j)
+            c = cd_mul(a, b, level)
+            table[i, j, 0::2] = c.real
+            table[i, j, 1::2] = c.imag
+
+    return table
+
+
 class HyperLinear(nn.Module):
     """Universal hypercomplex Linear-Layer for arbitrary dimensioning (complex-native)."""
 
@@ -75,6 +105,7 @@ class HyperLinear(nn.Module):
                 )
             )
             self._reset_parameters()
+            self._cd_table = _cd_multiplication_table(level)
 
     def _reset_parameters_level1(self):
         with torch.no_grad():
@@ -119,17 +150,62 @@ class HyperLinear(nn.Module):
             out = self.linear(x_sq)
             return out.unsqueeze(-1)
 
-        # Cayley-Dickson for Level >= 2
-        x_expanded = x.unsqueeze(-3)
-        w_expanded = self.weight
+        # Cayley-Dickson for Level >= 2 as a single real BLAS matmul.
+        # The CD product is bilinear, so the hypercomplex weight can be spread
+        # into a real [out * n, in * n] matrix once and applied via F.linear.
+        n = self._cd_table.shape[0]
+        if self._cd_table.device != self.weight.device:
+            self._cd_table = self._cd_table.to(self.weight.device)
 
-        prod = cd_mul(x_expanded, w_expanded, level=self.level)
-        out = prod.sum(dim=-2)
+        # weight real components: [out, in, n]
+        wr = torch.stack([self.weight.real, self.weight.imag], dim=-1).flatten(-2)
+
+        # W_mat[out * r, in * p] = sum_q wr[out, in, q] * T[p, q, r]
+        # (matches cd_mul(x_expanded, w_expanded): input x on the left, weight on
+        # the right, summed over the input feature axis.)
+        g = torch.einsum("oiq,pqr->oipr", wr, self._cd_table)  # [out, in, p, r]
+        w_mat = g.permute(0, 3, 1, 2).reshape(
+            self.out_features * n, self.in_features * n
+        )
+
+        # input real components: [..., in * n]
+        xr = torch.stack([x.real, x.imag], dim=-1).flatten(-2).flatten(start_dim=-2)
+
+        yr = F.linear(xr, w_mat)  # [..., out * n]
+        yr = yr.view(*xr.shape[:-1], self.out_features, n)
+
+        out = torch.complex(yr[..., 0::2], yr[..., 1::2])
 
         if self.bias is not None:
             out = out + self.bias
 
         return out
+
+
+class HyperDropout(nn.Module):
+    """Dropout that also supports complex inputs (``nn.Dropout`` does not).
+
+    ``nn.Dropout`` raises ``NotImplementedError`` for complex tensors
+    (``bernoulli_scalar_cpu_`` is not implemented for ``ComplexFloat``), so this
+    module builds a single real mask that is shared across the real and imaginary
+    parts. Whole hypercomplex entries are therefore dropped together, with the
+    usual scaled-dropout semantics (survivors scaled by ``1 / (1 - p)``).
+    """
+
+    def __init__(self, p: float = 0.0):
+        super().__init__()
+        if p < 0.0 or p > 1.0:
+            raise ValueError(f"dropout probability has to be between 0 and 1, got {p}")
+        self.p = p
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if not self.training or self.p == 0.0:
+            return x
+        if self.p == 1.0:
+            return torch.zeros_like(x)
+        # `x.real` is the tensor itself for real inputs, so this works for both.
+        mask = (torch.rand_like(x.real) >= self.p).to(x.real.dtype) / (1.0 - self.p)
+        return x * mask
 
 
 class HyperRMSNorm(nn.Module):
@@ -143,8 +219,14 @@ class HyperRMSNorm(nn.Module):
         self.weight = nn.Parameter(torch.ones(dim, 1))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x Shape: [..., dim, hyper_dim] (complex)
-        ampsq = (x.abs() ** 2).sum(dim=-1)  # Shape: [..., dim]
+        # x Shape: [..., dim, hyper_dim] (complex; real is also tolerated)
+        # |z|^2 computed directly for complex input (avoids the sqrt-then-square
+        # round trip of x.abs() ** 2; equivalent, slightly more accurate, ~2x
+        # faster). `.imag` is not defined for real tensors, so branch on dtype.
+        if torch.is_complex(x):
+            ampsq = (x.real**2 + x.imag**2).sum(dim=-1)  # Shape: [..., dim]
+        else:
+            ampsq = (x**2).sum(dim=-1)
 
         pairs = 2 ** (self.level - 1)
         ampsq = ampsq / pairs
@@ -255,10 +337,12 @@ class GyRoPE(nn.Module):
             ).clamp(min=1e-8)
             self.axis_params.copy_(axis / axis_norm)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, start_pos: int = 0) -> torch.Tensor:
         # Shape: [Batch, n_head, T, head_size, hyper_dim] (complex)
         B, nh, T, hs, _ = x.shape
-        t_current = self.t[:T]
+        t_current = torch.arange(
+            start_pos, start_pos + T, dtype=torch.float32, device=x.device
+        )
 
         axis = self.axis_params
         axis_norm = torch.linalg.vector_norm(axis, ord=2, dim=-1, keepdim=True).clamp(
@@ -278,9 +362,13 @@ class GyRoPE(nn.Module):
             [cos_p, imag_part], dim=-1
         )  # [1, nh, T, hs, 2^level]
 
-        # pack pairs to torch.complex64:
-        r_real = real_components[..., : self.hyper_dim]
-        r_imag = real_components[..., self.hyper_dim :]
+        # Pack pairs to torch.complex64. The real-dimensional ordering is
+        # [component0.real, component0.imag, component1.real, component1.imag,
+        # ...], so the real/imag parts of each complex component interleave.
+        # Slicing first-half/second-half here would permute the rotation axes
+        # for level >= 2 (e.g. a quaternion i-rotation would land on j).
+        r_real = real_components[..., 0::2]
+        r_imag = real_components[..., 1::2]
         rotor = torch.complex(r_real, r_imag)  # [1, nh, T, hs, hyper_dim]
 
         return cd_mul(x, rotor, level=self.level)

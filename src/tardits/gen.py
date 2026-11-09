@@ -5,7 +5,7 @@ import os
 import yaml
 
 import torch
-from tardits.models import HyperFormer, RealGPT
+from tardits.models import available_archs, get_model_class
 from tardits.modules import get_device
 
 
@@ -21,6 +21,16 @@ def main():
         type=str,
         default="examples/configs/complex.yaml",
         help="Path to YAML configuration file",
+    )
+    parser.add_argument(
+        "--arch",
+        "-a",
+        type=str,
+        default=None,
+        help=(
+            "Override the model family selected in the config "
+            f"({' | '.join(available_archs())})"
+        ),
     )
     parser.add_argument(
         "--checkpoint",
@@ -81,10 +91,13 @@ def main():
     with open(args.config, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    if cfg["model"]["level"] < 1:
-        GPT = RealGPT
-    else:
-        GPT = HyperFormer
+    model_cfg = cfg["model"]
+    # `arch` selects the model class, so it is not part of ModelConfig
+    config_arch = model_cfg.pop("arch", None)
+    try:
+        GPT = get_model_class(args.arch or config_arch, model_cfg.get("level", 1))
+    except ValueError as e:
+        parser.error(str(e))
 
     # --- Load Config ---
     checkpoint_path = args.checkpoint or cfg["trainer"]["checkpoint"]
@@ -96,6 +109,7 @@ def main():
     # --- Load Weights ---
     model = GPT.load_from_checkpoint(checkpoint_path, device=device)
     model.eval()
+    print(f"🧠 {type(model).__name__} | level {model.config.level} | {checkpoint_path}")
 
     # --- Load Vocabulary ---
     with open(vocab_path, "r", encoding="utf-8") as ch:
@@ -118,7 +132,7 @@ def main():
         # 🧹 Clear terminal screen
         print("\033[2J\033[H", end="")
         print(
-            f"⏳ Token-Stream (complexity-lvl: {cfg['model']['level']} @ {checkpoint_path}) — Ctrl+C to exit\n"
+            f"⏳ Token-Stream (complexity-lvl: {cfg['model']['level']} @ {checkpoint_path}) - Ctrl+C to exit\n"
         )
         try:
             sys.stdout.write(prompt)

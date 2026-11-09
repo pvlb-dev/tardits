@@ -2,6 +2,7 @@ device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
 seed: 1337
 
 model:
+  arch: hyper # real | hyper | rat
   level: 3 # Octonion
   block_size: 64
   n_head: 4
@@ -16,7 +17,7 @@ trainer:
   learning_rate: 0.0005
   eval_iters: 200
   save_interval: 100
-  checkpoint: "examples/saved/OctonionGPT.pt"
+  checkpoint: "examples/saved/Octonion.pt"
 
 mlflow:
   experiment: ""

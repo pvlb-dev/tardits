@@ -1,13 +1,25 @@
 import math
+import re
 import time
+from dataclasses import dataclass, field
+
 import numpy as np
 import torch
-from tardits.modules.conf import MLFlowConfig
 
 try:
     import mlflow
 except ImportError:
     mlflow = None
+
+
+@dataclass
+class MLFlowConfig:
+    experiment: str = "sail_experiment"
+    run_name: str = ""
+    tags: dict[str, str] = field(default_factory=dict)
+    log_interval: int = 10
+    deep_log_interval: int = 100
+    system_metrics: bool = False
 
 
 class ConsoleLogger:
@@ -47,6 +59,11 @@ class MLFlowLogger:
         if not mlflow:
             return
         model = trainer.model
+        # Only SAIL-based blocks expose the phase hooks. RealGPT uses SwiGLU
+        # (`block.ffwd`) and has no `.sail`, so deep logging is a no-op there.
+        blocks = [b for b in getattr(model, "blocks", []) if hasattr(b, "sail")]
+        if not blocks:
+            return
         model.eval()
 
         if hasattr(trainer, "get_batch"):
@@ -59,7 +76,7 @@ class MLFlowLogger:
         sail_data = {}
         handles = []
 
-        for layer_idx, block in enumerate(model.blocks):
+        for layer_idx, block in enumerate(blocks):
 
             def make_hook(idx):
 
@@ -80,7 +97,7 @@ class MLFlowLogger:
         for handle in handles:
             handle.remove()
 
-        num_layers = len(model.blocks)
+        num_layers = len(blocks)
         layer_metrics = {}
 
         for l_idx in range(num_layers):
@@ -97,18 +114,116 @@ class MLFlowLogger:
 
         model.train()
 
+    def _log_gamma_histograms(self, trainer):
+        """Log the fast-weight decay ``gamma`` distribution (RAT models only)."""
+        if not mlflow:
+            return
+
+        # Sammle alle gamma-Parameter aus den Blocks
+        gammas = []
+        for block in getattr(trainer.model, "blocks", []):
+            if hasattr(block, "sa") and hasattr(block.sa, "gamma"):
+                gammas.append(block.sa.gamma.detach().cpu())
+
+        if not gammas:
+            return
+
+        from matplotlib import pyplot as plt
+
+        # Alle Gammas zu einem flachen Vektor zusammenfassen
+        all_gammas = torch.cat([g.flatten() for g in gammas]).numpy()
+
+        real_vals = np.real(all_gammas)
+        imag_vals = np.imag(all_gammas)
+        abs_vals = np.abs(all_gammas)
+
+        def safe_bins(values):
+            # At init gamma sits exactly on the unit sphere, so |gamma| has zero
+            # range; matplotlib rejects 50 bins for a zero-width range.
+            return 50 if float(values.max() - values.min()) > 1e-4 else 1
+
+        # Per-layer summary metrics make the decay structure queryable, e.g. for
+        # the layer-wise |gamma| heatmap in docs/scripts/plot_mlflow.py.
+        for idx, g in enumerate(gammas):
+            abs_g = g.abs()
+            mlflow.log_metric(
+                f"gamma/layer_{idx}/mean_abs", abs_g.mean().item(), step=trainer.step
+            )
+            mlflow.log_metric(
+                f"gamma/layer_{idx}/frac_gt_1",
+                (abs_g > 1.0).float().mean().item(),
+                step=trainer.step,
+            )
+            mlflow.log_metric(
+                f"gamma/layer_{idx}/mean_phase",
+                torch.angle(g).mean().item(),
+                step=trainer.step,
+            )
+
+        # Plot erstellen: the |gamma| histogram is the main decay/gain view; the
+        # complex-plane density shows where the learned decay sits in C.
+        fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+        fig.suptitle(
+            f"{type(trainer.model).__name__} Gamma Distribution - Step {trainer.step}",
+            fontsize=12,
+            fontweight="bold",
+        )
+
+        # 1. Realteil Histogramm
+        axes[0, 0].hist(real_vals, bins=safe_bins(real_vals), color="crimson", alpha=0.75)
+        axes[0, 0].set_title("Real Part (Re)")
+        axes[0, 0].axvline(
+            1.0, color="black", linestyle="--", alpha=0.6, label="Boundary 1.0"
+        )
+        axes[0, 0].legend()
+
+        # 2. Imaginärteil Histogramm
+        axes[0, 1].hist(imag_vals, bins=safe_bins(imag_vals), color="teal", alpha=0.75)
+        axes[0, 1].set_title("Imaginary Part (Im)")
+        axes[0, 1].axvline(0.0, color="black", linestyle="--", alpha=0.6)
+
+        # 3. Absolutbetrag |gamma| Histogramm (Der wirkliche Decay/Gain)
+        axes[1, 0].hist(abs_vals, bins=safe_bins(abs_vals), color="purple", alpha=0.75)
+        axes[1, 0].set_title("Magnitude |γ| (Decay/Gain Factor)")
+        axes[1, 0].axvline(
+            1.0,
+            color="red",
+            linestyle="--",
+            linewidth=1.5,
+            label="Explosion Threshold (1.0)",
+        )
+        axes[1, 0].legend()
+
+        # 4. Complex-plane density: reveals the learned ring/spiral in C.
+        hb = axes[1, 1].hexbin(
+            real_vals, imag_vals, gridsize=60, cmap="twilight", mincnt=1
+        )
+        axes[1, 1].set_title("Complex Plane Density")
+        axes[1, 1].set_xlabel("Re(γ)")
+        axes[1, 1].set_ylabel("Im(γ)")
+        fig.colorbar(hb, ax=axes[1, 1], label="count")
+
+        plt.tight_layout()
+
+        # Als Figur-Artifact direkt in MLFlow loggen
+        mlflow.log_figure(fig, f"gamma_histograms/gamma_step_{trainer.step:05d}.png")
+        plt.close(fig)
+
     def on_train_start(self, trainer):
         if not mlflow:
             return
         mlflow.set_experiment(self.config.experiment)
         if self.config.system_metrics:
             mlflow.enable_system_metrics_logging()
-        mlflow.start_run()
+        mlflow.start_run(run_name=self.config.run_name or None)
+        if self.config.tags:
+            mlflow.set_tags(self.config.tags)
 
         if hasattr(trainer, "config"):
             mlflow.log_params(vars(trainer.config))
         if hasattr(trainer.model, "config"):
             mlflow.log_params(vars(trainer.model.config))
+        mlflow.log_param("arch", type(trainer.model).__name__)
 
         if hasattr(trainer.model, "get_num_params"):
             num_params = trainer.model.get_num_params()
@@ -139,6 +254,11 @@ class MLFlowLogger:
             step=trainer.step,
         )
 
+        try:
+            self._log_gamma_histograms(trainer)
+        except Exception as e:
+            print(f"⚠️ Gamma Histogram Logging skipped: {e}")
+
     def on_train_end(self, trainer, losses):
         if not mlflow:
             return
@@ -154,6 +274,11 @@ class MLFlowLogger:
         num_layers = len(trainer.model.blocks)
         cols = 2 if num_layers > 1 else 1
         rows = math.ceil(num_layers / cols)
+        slug = re.sub(
+            r"[^a-z0-9]+",
+            "-",
+            (self.config.run_name or type(trainer.model).__name__).lower(),
+        ).strip("-") or "run"
 
         #  2D MULTI-LAYER SAIL GIF
         if self.frames_data:
@@ -184,7 +309,7 @@ class MLFlowLogger:
             ani_2d = animation.FuncAnimation(
                 fig_2d, update_2d, frames=len(self.frames_data), interval=300
             )
-            gif_path_2d = "examples/saved/sail_all_layers_evolution.gif"
+            gif_path_2d = f"examples/saved/{slug}_sail_all_layers_evolution.gif"
             ani_2d.save(gif_path_2d, writer="pillow", fps=3)
             plt.close(fig_2d)
             mlflow.log_artifact(gif_path_2d, artifact_path="animations")
@@ -233,7 +358,7 @@ class MLFlowLogger:
             ani_3d = animation.FuncAnimation(
                 fig_3d, update_3d, frames=len(self.frames_data), interval=300
             )
-            gif_path_3d = "examples/saved/sail_3d_topography_evolution.gif"
+            gif_path_3d = f"examples/saved/{slug}_sail_3d_topography_evolution.gif"
             ani_3d.save(gif_path_3d, writer="pillow", fps=3)
             plt.close(fig_3d)
             mlflow.log_artifact(gif_path_3d, artifact_path="animations")

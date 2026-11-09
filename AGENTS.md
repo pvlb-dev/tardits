@@ -10,7 +10,8 @@ files. If a task touches a row in the trigger table below, read that file first.
 ## Orientation - pvlb.dev
 
 This repo lives on the pvlb.dev forge: <https://git.pvlb.dev/ml-lab/tardits>.
-`master` is the default branch; `release/0.3.0` is the current release tree.
+`master` is the default branch; `release/0.3.0-clean` is the current release
+tree (PR [#4](https://git.pvlb.dev/ml-lab/tardits/issues/4)).
 
 Before starting, read the bootcamp:
 <https://git.pvlb.dev/ops/srvbtw/wiki/DSH-Bootcamp>. It covers the box (srvbtw,
@@ -51,10 +52,6 @@ Char-level tokenizer, Python >= 3.13, `src/` layout, CPU-first. `ttrain` and
 `tgen` drive every family from `model.arch`; shipped configs are validated by
 `tests/test_registry.py`.
 
-> Transition note: on `master` before PR #3 merges, `docs/`, `tests/`,
-> `benchmarks/` and `RAT` exist only on `release/0.3.0`. The rows below describe
-> the merged 0.3.0 tree.
-
 ## Quick start
 
 ```bash
@@ -72,17 +69,17 @@ GIFs stay in `examples/saved/` (gitignored); committed graphics live in
 
 | If the task touches ... | Read |
 |---|---|
-| git identity, commits, signing, a new clone | [`GIT.md`](GIT.md), local only |
-| issues, input box, `note` and `NaNs`, experiments, media, release | [`devops/workflow.md`](devops/workflow.md), local only |
+| git identity, commits, signing, a new clone | `GIT.md`, local checkout only (gitignored) |
+| issues, input box, `note` and `NaNs`, experiments, media, release | `devops/workflow.md`, local checkout only (gitignored) |
 | model code, algebras, RAT attention, configs, checkpoints, CLIs | [`docs/model-internals.md`](docs/model-internals.md) |
 | file and directory layout, commands, test and bench entry points | [`docs/repo-map.md`](docs/repo-map.md) |
 | benchmarks, or any speed claim | [`docs/findings/inference-speed.md`](docs/findings/inference-speed.md) |
 | long context, NIAH, retrieval claims | [`docs/findings/niah-pilot.md`](docs/findings/niah-pilot.md), [`docs/findings/niah-fineweb.md`](docs/findings/niah-fineweb.md) |
-| Kaggle, GPU, research-scale FineWeb runs | [`docs/findings/kaggle-training.md`](docs/findings/kaggle-training.md), [`docs/findings/kaggle-quota-jobs.md`](docs/findings/kaggle-quota-jobs.md), [`docs/findings/gpu-probe.md`](docs/findings/gpu-probe.md), [`docs/findings/fineweb-plan.md`](docs/findings/fineweb-plan.md) |
+| GPU/T4 throughput and memory measurements | [`docs/findings/gpu-probe.md`](docs/findings/gpu-probe.md) |
 | running or reporting an experiment | [`docs/experiments/`](docs/experiments/), [`docs/index.md`](docs/index.md) |
 | auditing a RAT checkpoint (decay horizon, max absolute gamma, state deltas) | [`docs/findings/rat-state-probe.md`](docs/findings/rat-state-probe.md) |
-| README, translations, docs, mascot, art, videos | [`docs/README.md`](docs/README.md), [`docs/assets/`](docs/assets/) |
-| the release, versioning, tag, PyPI, Forgejo registry | issue [#3](https://git.pvlb.dev/ml-lab/tardits/issues/3) |
+| README, translations, docs, videos | [`docs/README.md`](docs/README.md), [`docs/assets/`](docs/assets/) |
+| the release, versioning, tag, PyPI, Forgejo registry | issue [#4](https://git.pvlb.dev/ml-lab/tardits/issues/4), [`.forgejo/workflows/`](.forgejo/workflows/) |
 | a house rule or bootcamp change | the bootcamp link above; label `bootcamp` or `note` |
 
 ## Hard invariants (the ones that bite)
@@ -146,7 +143,7 @@ and experiment reports. Higher wins; fix the lower in the same pass.
 
 - Experiment reports: [`docs/experiments/`](docs/experiments/)
 - Results summary and backlog: [`docs/index.md`](docs/index.md), Forgejo issues
-- Release state: issue [#3](https://git.pvlb.dev/ml-lab/tardits/issues/3)
+- Release state: issue [#4](https://git.pvlb.dev/ml-lab/tardits/issues/4)
 - Session status: the open issues, not this file.
 
 ## House rule: keep this file small

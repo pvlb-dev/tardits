@@ -2,6 +2,7 @@ device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
 seed: 1337
 
 model:
+  arch: hyper # real | hyper | rat
   level: 4 # Sedenion
   block_size: 32
   n_head: 2
@@ -16,7 +17,7 @@ trainer:
   learning_rate: 0.0005
   eval_iters: 200
   save_interval: 100
-  checkpoint: "examples/saved/SedenionGPT.pt"
+  checkpoint: "examples/saved/Sedenion.pt"
 
 mlflow:
   experiment: ""

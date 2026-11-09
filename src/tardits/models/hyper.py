@@ -11,7 +11,7 @@ from tardits.modules import (
     HyperLinear,
     LMCoreMixin
 )
-from tardits.modules.conf import ModelConfig
+from tardits.models.base import ModelConfig
 
 
 class HyperSelfAttention(nn.Module):

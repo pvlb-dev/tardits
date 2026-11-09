@@ -1,6 +1,6 @@
-from .trainer import Trainer
-from .base import get_device
-from .conf import ModelConfig, TrainerConfig, MLFlowConfig
+from .trainer import Trainer, TrainerConfig
+from .base import get_device, LMCoreMixin
+from .logging import MLFlowConfig
 from .core import (
     SAIL,
     GyRoPE,
@@ -8,20 +8,23 @@ from .core import (
     HyperEmbedding,
     HyperLMHead,
     HyperLinear,
+    HyperDropout,
 )
-from .base import LMCoreMixin
+
+# NOTE: ModelConfig lives in `tardits.models.base` (it is shared by all models and
+# is intentionally not re-exported here, so `modules` does not depend on `models`).
 
 __all__ = [
     "Trainer",
-    "ModelConfig",
     "TrainerConfig",
     "MLFlowConfig",
     "SAIL",
     "GyRoPE",
-    "LMCoreMixin"
+    "LMCoreMixin",
     "HyperRMSNorm",
     "HyperEmbedding",
     "HyperLMHead",
     "HyperLinear",
-    "get_device"
+    "HyperDropout",
+    "get_device",
 ]

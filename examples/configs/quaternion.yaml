@@ -2,6 +2,7 @@ device: "auto" # Choices: "auto", "cuda", "cpu", "mps"
 seed: 1337
 
 model:
+  arch: hyper # real | hyper | rat
   level: 2 # Quaternion
   block_size: 64
   n_head: 4
@@ -14,12 +15,12 @@ trainer:
   max_iters: 5000
   eval_interval: 500
   learning_rate: 0.0005
-  eval_iters: 200
-  save_interval: 100
-  checkpoint: "examples/saved/QuaternionGPT.pt"
+  eval_iters: 20
+  save_interval: 6000
+  checkpoint: "examples/saved/Quaternion.pt"
 
 mlflow:
-  experiment: ""
+  experiment: "LinA_init"
   log_interval: 10
   deep_log_interval: 0
   system_metrics: false
